@@ -11,3 +11,10 @@ packages = ["red_dust", "red_dust.agents", "red_dust.env", "red_dust.harness", "
 
 [tool.setuptools.package-dir]
 "" = "."
+
+[tool.pytest.ini_options]
+testpaths = ["red_dust"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"

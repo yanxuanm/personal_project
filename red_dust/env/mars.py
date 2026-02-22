@@ -141,6 +141,81 @@ DECISION_TEMPLATES = {
             {"text": "拒绝接收 (保持现状)", "effects": {}},
         ],
     },
+    DecisionType.METEOR: {
+        "title": "陨石来袭！METEOR INCOMING!",
+        "description": "天文台探测到大型陨石正在接近殖民地！预计撞击时间紧迫！",
+        "options": [
+            {
+                "text": "启动防护盾 (消耗100能量)",
+                "effects": {"energy": -100},
+            },
+            {
+                "text": "全员疏散至地下避难所 (无消耗)",
+                "effects": {},
+            },
+            {
+                "text": "发射拦截导弹 (消耗50能量, 30水)",
+                "effects": {"energy": -50, "water": -30},
+            },
+        ],
+    },
+    DecisionType.ALIEN_DISCOVERY: {
+        "title": "外星发现！ALIEN DISCOVERY!",
+        "description": "探测器在火星表面发现不明建筑结构！疑似外星文明遗迹！",
+        "options": [
+            {
+                "text": "派遣考察队 (消耗40能量)",
+                "effects": {"energy": -40},
+                "reward": {"oxygen": 30, "water": 30},
+            },
+            {
+                "text": "远程探测分析 (消耗20能量)",
+                "effects": {"energy": -20},
+                "reward": {"energy": 20},
+            },
+            {
+                "text": "封锁消息，保持距离",
+                "effects": {},
+            },
+        ],
+    },
+    DecisionType.DUST_STORM: {
+        "title": "沙尘暴！DUST STORM APPROACHING!",
+        "description": "大规模沙尘暴正在接近！能见度急剧下降，太阳能收集将受影响！",
+        "options": [
+            {
+                "text": "关闭外部设备进入防御模式 (减少能量损失)",
+                "effects": {"energy": 20},
+            },
+            {
+                "text": "加固居住舱 (消耗30水)",
+                "effects": {"water": -30},
+            },
+            {
+                "text": "冒险收集更多资源 (高风险)",
+                "effects": {"energy": 50},
+                "risk": "high",
+            },
+        ],
+    },
+    DecisionType.DISEASE_OUTBREAK: {
+        "title": "疾病爆发！DISEASE OUTBREAK!",
+        "description": "多名船员出现不明症状！可能具有传染性！",
+        "options": [
+            {
+                "text": "启动隔离程序 (消耗50能量)",
+                "effects": {"energy": -50},
+            },
+            {
+                "text": "使用紧急医疗资源 (消耗30水, 20食物)",
+                "effects": {"water": -30, "food": -20},
+            },
+            {
+                "text": "让医生诊断治疗 (无消耗)",
+                "effects": {},
+            },
+        ],
+    },
 }
 
 
@@ -699,6 +774,43 @@ class MarsEnvironment:
                 self.state.add_log(
                     f"RANDOM EVENT: {agent.name} experienced mental breakdown!"
                 )
+
+        # METEOR event (3% chance)
+        if self.rng.next_float() < 0.03:
+            self._trigger_random_decision(DecisionType.METEOR)
+
+        # ALIEN_DISCOVERY event (2% chance)
+        if self.rng.next_float() < 0.02:
+            self._trigger_random_decision(DecisionType.ALIEN_DISCOVERY)
+
+        # DUST_STORM event (4% chance)
+        if self.rng.next_float() < 0.04:
+            self._trigger_random_decision(DecisionType.DUST_STORM)
+
+        # DISEASE_OUTBREAK event (2% chance)
+        if self.rng.next_float() < 0.02:
+            self._trigger_random_decision(DecisionType.DISEASE_OUTBREAK)
+
+    def _trigger_random_decision(self, decision_type: DecisionType) -> None:
+        """Trigger a random decision event."""
+        if len(self.state.pending_decisions) >= self.MAX_PENDING_DECISIONS:
+            return
+
+        template = DECISION_TEMPLATES[decision_type]
+        decision_id = f"event_{self.state.tick}_{self.rng.next_int(1000, 9999)}"
+        decision = Decision(
+            id=decision_id,
+            type=decision_type.value,
+            title=template["title"],
+            description=template["description"],
+            options=template["options"],
+            tick_created=self.state.tick,
+            resolved=False,
+            chosen_option=None,
+        )
+
+        self.state.pending_decisions.append(decision)
+        self.state.add_log(f"RANDOM EVENT: {decision.title}")
 
     def _update_agents(self, alive_agents: list) -> None:
         """Update agent states each tick."""

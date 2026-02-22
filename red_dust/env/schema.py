@@ -107,15 +107,19 @@ SPECIALIZATION_BONUSES = {
 
 class DecisionType(Enum):
     METEOR_STRIKE = "meteor_strike"
+    METEOR = "meteor"
     OXYGEN_CRISIS = "oxygen_crisis"
     WATER_CRISIS = "water_crisis"
     ENERGY_CRISIS = "energy_crisis"
     FOOD_CRISIS = "food_crisis"
     WATER_CONTAMINATION = "water_contamination"
     SOLAR_STORM = "solar_storm"
+    DUST_STORM = "dust_storm"
     CREW_MUTINY = "crew_mutiny"
     EQUIPMENT_FAILURE = "equipment_failure"
     SUPPLY_DROP = "supply_drop"
+    ALIEN_DISCOVERY = "alien_discovery"
+    DISEASE_OUTBREAK = "disease_outbreak"
 
 
 class MissionType(Enum):

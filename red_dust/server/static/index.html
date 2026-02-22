@@ -488,28 +488,27 @@
     <!-- CRT Scanline Overlay -->
     <div class="crt-overlay"></div>
     
-    <!-- Notification Container -->
-    <div class="notification-container">
-        <div v-for="notification in notifications" 
-             :key="notification.id"
-             class="notification-toast"
-             :class="[notification.type, { 'removing': notification.removing }]">
-            <span class="notification-icon">{{ notification.icon }}</span>
-            <div class="notification-content">
-                <div class="notification-title">{{ notification.title }}</div>
-                <div class="notification-message">{{ notification.message }}</div>
-            </div>
-            <button class="notification-close" @click="dismissNotification(notification.id)">×</button>
-        </div>
-    </div>
-    
-    <!-- Sound Toggle -->
-    <button class="sound-toggle" @click="toggleSound" :title="soundEnabled ? 'Disable sound effects' : 'Enable sound effects'">
-        {{ soundEnabled ? '🔊' : '🔇' }}
-    </button>
-    
     <!-- Main Container -->
     <div id="app" class="min-h-screen p-4 flicker">
+        <!-- Notification Container (inside Vue app) -->
+        <div class="notification-container" style="position: fixed; top: 20px; right: 20px; z-index: 9998;">
+            <div v-for="notification in notifications" 
+                 :key="notification.id"
+                 class="notification-toast"
+                 :class="[notification.type, { 'removing': notification.removing }]">
+                <span class="notification-icon">{{ notification.icon }}</span>
+                <div class="notification-content">
+                    <div class="notification-title">{{ notification.title }}</div>
+                    <div class="notification-message">{{ notification.message }}</div>
+                </div>
+                <button class="notification-close" @click="dismissNotification(notification.id)">×</button>
+            </div>
+        </div>
+        
+        <!-- Sound Toggle -->
+        <button class="sound-toggle" @click="toggleSound" :title="soundEnabled ? 'Disable sound effects' : 'Enable sound effects'" style="position: fixed; bottom: 20px; right: 20px; z-index: 9997;">
+            {{ soundEnabled ? '🔊' : '🔇' }}
+        </button>
         <!-- Header -->
         <header class="mb-8">
             <div class="crt-border p-6 bg-gradient-to-r from-gray-900 to-black">

@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run tests
+        run: pytest
+
+      # ============================================================
+      # Add more CI steps below as needed. Examples:
+      # ============================================================
+
+      # Run linting (uncomment and customize):
+      # - name: Run linting
+      #   run: |
+      #     pip install ruff
+      #     ruff check .
+
+      # Run type checking (uncomment and customize):
+      # - name: Run type checking
+      #   run: |
+      #     pip install mypy
+      #     mypy .
+
+      # Run code formatting check (uncomment and customize):
+      # - name: Check code formatting
+      #   run: |
+      #     pip install black
+      #     black --check .
+
+      # Run security audit (uncomment and customize):
+      # - name: Security audit
+      #   run: |
+      #     pip install safety
+      #     safety check

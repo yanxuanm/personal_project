@@ -26,20 +26,12 @@
 **描述**: 每个 agent 有独特技能，影响行动效率和结果
 
 **子任务**:
-- [ ] 1.1 在 schema 中添加 agent specialization 字段
-- [ ] 1.2 定义技能类型: ENGINEER, SCIENTIST, EXPLORER, MEDIC, PILOT, COMMANDER
-- [ ] 1.3 不同技能影响资源获取/维修/探索效率
-- [ ] 1.4 UI 显示 agent 特长图标
+- [x] 1.1 在 schema 中添加 agent specialization 字段
+- [x] 1.2 定义技能类型: ENGINEER, SCIENTIST, EXPLORER, MEDIC, PILOT, COMMANDER
+- [x] 1.3 不同技能影响资源获取/维修/探索效率
+- [x] 1.4 UI 显示 agent 特长图标
 
-**技能加成**:
-| 类型 | 加成领域 |
-|------|---------|
-| ENGINEER | 维修效率 +30%, 能量生产 +20% |
-| SCIENTIST | 研究速度 +40%, 食物生产 +20% |
-| EXPLORER | 发现资源概率 +50%, 探索范围 +30% |
-| MEDIC | 生命恢复 +30%, 心理恢复 +40% |
-| PILOT | 应急响应 +30%, 设备故障减少 +20% |
-| COMMANDER | 团队效率 +15%, 减少叛变概率 |
+**状态**: ✅ 完成
 
 ---
 

@@ -22,6 +22,21 @@ class SecretObjectiveType(Enum):
     PROTECT_SOMEONE = "protect_someone"
 
 
+class CrisisType(Enum):
+    OXYGEN_CRISIS = "oxygen_crisis"
+    WATER_CRISIS = "water_crisis"
+    ENERGY_CRISIS = "energy_crisis"
+    FOOD_CRISIS = "food_crisis"
+
+
+CRISIS_THRESHOLDS = {
+    CrisisType.OXYGEN_CRISIS: 100,
+    CrisisType.WATER_CRISIS: 80,
+    CrisisType.ENERGY_CRISIS: 50,
+    CrisisType.FOOD_CRISIS: 60,
+}
+
+
 SECRET_OBJECTIVE_DESCRIPTIONS = {
     SecretObjectiveType.BETRAY_LOVER: "Betray your closest ally at a critical moment",
     SecretObjectiveType.STEAL_RESOURCES: "Secretly steal 100+ units of any resource",
@@ -92,7 +107,10 @@ SPECIALIZATION_BONUSES = {
 
 class DecisionType(Enum):
     METEOR_STRIKE = "meteor_strike"
+    OXYGEN_CRISIS = "oxygen_crisis"
+    WATER_CRISIS = "water_crisis"
     ENERGY_CRISIS = "energy_crisis"
+    FOOD_CRISIS = "food_crisis"
     WATER_CONTAMINATION = "water_contamination"
     SOLAR_STORM = "solar_storm"
     CREW_MUTINY = "crew_mutiny"

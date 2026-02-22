@@ -96,6 +96,28 @@ async def get_state():
         # Get detailed state
         state = sim_controller.env.state
 
+        # Prepare crisis warnings
+        crisis_warnings = []
+        active_crises = getattr(state, "_active_crises", {})
+        for resource, threshold in [
+            ("oxygen", 100),
+            ("water", 80),
+            ("energy", 50),
+            ("food", 60),
+        ]:
+            level = state.resources.get(resource, 0)
+            if level < threshold:
+                crisis_warnings.append(
+                    {
+                        "resource": resource,
+                        "current": level,
+                        "threshold": threshold,
+                        "severity": "critical"
+                        if level < threshold * 0.5
+                        else "warning",
+                    }
+                )
+
         # Prepare response
         response = {
             "tick": state.tick,
@@ -113,6 +135,7 @@ async def get_state():
                 for m in state.missions
                 if m.status == MissionStatus.ACTIVE.value
             ],
+            "crisis_warnings": crisis_warnings,
         }
 
         # Add agent details

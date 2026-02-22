@@ -9,6 +9,8 @@ from .schema import (
     Specialization,
     SPECIALIZATION_BONUSES,
     SecretObjectiveType,
+    CrisisType,
+    CRISIS_THRESHOLDS,
 )
 from ..harness.rand_gen import DeterministicRandom
 from ..agents.schema import AgentAction
@@ -27,6 +29,38 @@ DECISION_TEMPLATES = {
             },
         ],
     },
+    DecisionType.OXYGEN_CRISIS: {
+        "title": "氧气危机！OXYGEN CRISIS!",
+        "description": "氧气储备严重不足！氧气发生器故障导致供应不足！",
+        "options": [
+            {
+                "text": "启动紧急氧气罐 (消耗50能量)",
+                "effects": {"energy": -50, "oxygen": 80},
+            },
+            {"text": "疏散到紧急避难所 (保存氧气)", "effects": {"oxygen": 30}},
+            {
+                "text": "冒险外出寻找氧气源 (高风险)",
+                "effects": {"oxygen": 60},
+                "risk": "high",
+            },
+        ],
+    },
+    DecisionType.WATER_CRISIS: {
+        "title": "水危机！WATER CRISIS!",
+        "description": "水资源储备低于安全线！水净化系统出现故障！",
+        "options": [
+            {
+                "text": "启用紧急水回收 (消耗30能量)",
+                "effects": {"energy": -30, "water": 60},
+            },
+            {
+                "text": "减少用水配给 (保存水, 人员健康下降)",
+                "effects": {"water": 40},
+                "health_cost": True,
+            },
+            {"text": "冒险寻找冰层 (高风险)", "effects": {"water": 80}, "risk": "high"},
+        ],
+    },
     DecisionType.ENERGY_CRISIS: {
         "title": "能源危机！ENERGY CRISIS!",
         "description": "太阳能板故障，能源储备严重不足！",
@@ -34,6 +68,26 @@ DECISION_TEMPLATES = {
             {"text": "关闭非必要系统 (保存50能量)", "effects": {"energy": 50}},
             {"text": "启动备用发电机 (消耗30食物)", "effects": {"food": -30}},
             {"text": "紧急抢修太阳能板 (无消耗, 成功率50%)", "effects": {}},
+        ],
+    },
+    DecisionType.FOOD_CRISIS: {
+        "title": "食物危机！FOOD CRISIS!",
+        "description": "食物储备严重不足！温室系统故障导致食物供应中断！",
+        "options": [
+            {
+                "text": "启用紧急口粮 (消耗40能量)",
+                "effects": {"energy": -40, "food": 50},
+            },
+            {
+                "text": "减少每日配给 (保存食物, 人员健康下降)",
+                "effects": {"food": 30},
+                "health_cost": True,
+            },
+            {
+                "text": "冒险外出寻找食物 (高风险)",
+                "effects": {"food": 70},
+                "risk": "high",
+            },
         ],
     },
     DecisionType.WATER_CONTAMINATION: {
@@ -279,6 +333,9 @@ class MarsEnvironment:
 
         # Check for disaster conditions
         self._check_disasters()
+
+        # Check for resource crises
+        self._check_crises()
 
         # Random events
         self._random_events()
@@ -534,6 +591,76 @@ class MarsEnvironment:
             self.state.add_log(
                 "WARNING: Crew experiencing starvation. Health declining."
             )
+
+    def _check_crises(self) -> None:
+        """Check for resource crises and trigger crisis decisions."""
+        resource_to_crisis = {
+            "oxygen": (CrisisType.OXYGEN_CRISIS, DecisionType.OXYGEN_CRISIS),
+            "water": (CrisisType.WATER_CRISIS, DecisionType.WATER_CRISIS),
+            "energy": (CrisisType.ENERGY_CRISIS, DecisionType.ENERGY_CRISIS),
+            "food": (CrisisType.FOOD_CRISIS, DecisionType.FOOD_CRISIS),
+        }
+
+        existing_crises = getattr(self.state, "_active_crises", {})
+
+        for resource_name, (crisis_type, decision_type) in resource_to_crisis.items():
+            threshold = CRISIS_THRESHOLDS.get(crisis_type, 0)
+            current_level = self.state.get_resource(resource_name)
+
+            if current_level < threshold:
+                if resource_name not in existing_crises:
+                    self._trigger_crisis(
+                        resource_name,
+                        crisis_type,
+                        decision_type,
+                        current_level,
+                        threshold,
+                    )
+            else:
+                if resource_name in existing_crises:
+                    del existing_crises[resource_name]
+                    self.state.add_log(
+                        f"CRISIS RESOLVED: {resource_name.capitalize()} is now above threshold!"
+                    )
+
+    def _trigger_crisis(
+        self,
+        resource_name: str,
+        crisis_type: CrisisType,
+        decision_type: DecisionType,
+        current_level: float,
+        threshold: float,
+    ) -> None:
+        """Trigger a crisis decision."""
+        if len(self.state.pending_decisions) >= self.MAX_PENDING_DECISIONS:
+            return
+
+        existing_crises = getattr(self.state, "_active_crises", {})
+        if resource_name in existing_crises:
+            return
+
+        existing_crises[resource_name] = True
+        self.state._active_crises = existing_crises
+
+        template = DECISION_TEMPLATES[decision_type]
+        decision_id = (
+            f"crisis_{self.state.tick}_{resource_name}_{self.rng.next_int(1000, 9999)}"
+        )
+        decision = Decision(
+            id=decision_id,
+            type=decision_type.value,
+            title=template["title"],
+            description=f"{template['description']}\n当前储量: {current_level:.1f}, 阈值: {threshold}",
+            options=template["options"],
+            tick_created=self.state.tick,
+            resolved=False,
+            chosen_option=None,
+        )
+
+        self.state.pending_decisions.append(decision)
+        self.state.add_log(
+            f"CRISIS ALERT: {resource_name.capitalize()} below threshold! ({current_level:.1f}/{threshold})"
+        )
 
     def _random_events(self) -> None:
         """Handle random events."""

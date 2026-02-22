@@ -4,9 +4,11 @@ __pycache__/
 *.so
 .Python
 venv/
-ENV/
 .env
 .venv
 *.log
 .DS_Store
 .pytest_cache/
+
+# Don't ignore red_dust/env
+!red_dust/env/

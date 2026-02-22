@@ -45,6 +45,15 @@ createApp({
             'Pilot Okafor': 'PILOT/INTEL'
         };
         
+        const specializationInfo = {
+            'commander': { icon: '⭐', label: 'COMMANDER', color: 'text-yellow-400' },
+            'engineer': { icon: '🔧', label: 'ENGINEER', color: 'text-orange-400' },
+            'scientist': { icon: '🔬', label: 'SCIENTIST', color: 'text-blue-400' },
+            'explorer': { icon: '🧭', label: 'EXPLORER', color: 'text-green-400' },
+            'medic': { icon: '❤️', label: 'MEDIC', color: 'text-red-400' },
+            'pilot': { icon: '🚀', label: 'PILOT', color: 'text-purple-400' }
+        };
+        
         const resourceMaxValues = {
             oxygen: 1000,
             water: 800,
@@ -202,6 +211,11 @@ createApp({
         
         const getAgentRole = (name) => {
             return agentRoles[name] || 'CREW MEMBER';
+        };
+        
+        const getAgentSpecialization = (agent) => {
+            if (!agent.specialization) return null;
+            return specializationInfo[agent.specialization.toLowerCase()] || null;
         };
         
         const getLogColorClass = (log) => {

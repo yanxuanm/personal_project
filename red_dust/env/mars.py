@@ -6,6 +6,8 @@ from .schema import (
     DecisionType,
     MissionType,
     MissionStatus,
+    Specialization,
+    SPECIALIZATION_BONUSES,
 )
 from ..harness.rand_gen import DeterministicRandom
 from ..agents.schema import AgentAction
@@ -213,6 +215,20 @@ class MarsEnvironment:
         if self.state.rng_state is None:
             self.state.rng_state = self.rng.get_state()
 
+    def _get_agent_bonuses(self, agent_name: str) -> Dict[str, float]:
+        """Get specialization bonuses for an agent."""
+        agent = self.state.agents.get(agent_name)
+        if agent:
+            return agent.get_bonuses()
+        return {}
+
+    def _has_specialization(self, agent_name: str, spec: Specialization) -> bool:
+        """Check if agent has a specific specialization."""
+        agent = self.state.agents.get(agent_name)
+        if agent and agent.specialization:
+            return agent.specialization == spec.value
+        return False
+
     def step(self, actions: Optional[List[AgentAction]] = None) -> bool:
         """Execute one simulation tick.
 
@@ -317,21 +333,65 @@ class MarsEnvironment:
 
         # Apply action effects
         for action in actions:
+            # Find the agent who performed this action
+            agent_name = action.argument if action.argument else None
+            bonuses = self._get_agent_bonuses(agent_name) if agent_name else {}
+
             if action.type == AgentAction.WORK:
                 # Working increases energy production slightly
-                self.state.modify_resource("energy", 2.0)
+                energy_gain = 2.0
+                # SCIENTIST: food bonus when working on greenhouse
+                if agent_name and self._has_specialization(
+                    agent_name, Specialization.SCIENTIST
+                ):
+                    food_bonus = bonuses.get("food_bonus", 0.20)
+                    self.state.modify_resource("food", 5.0 * (1 + food_bonus))
+                # EXPLORER: discovery bonus - small resource find chance
+                if agent_name and self._has_specialization(
+                    agent_name, Specialization.EXPLORER
+                ):
+                    if self.rng.next_float() < bonuses.get("discovery_bonus", 0.50):
+                        found_resource = self.rng.choice(
+                            ["oxygen", "water", "energy", "food"]
+                        )
+                        amount = self.rng.next_int(3, 8)
+                        self.state.modify_resource(found_resource, amount)
+                        self.state.add_log(
+                            f"EXPLORER DISCOVERY: {agent_name} found {amount} {found_resource}!"
+                        )
+                # PILOT: emergency bonus affects work efficiency
+                if agent_name and self._has_specialization(
+                    agent_name, Specialization.PILOT
+                ):
+                    energy_gain *= 1 + bonuses.get("emergency_bonus", 0.30)
+                self.state.modify_resource("energy", energy_gain)
+
             elif action.type == AgentAction.REPAIR:
                 # Repairing consumes energy but improves systems
                 self.state.modify_resource("energy", -5.0)
                 # Random chance to fix something
-                if self.rng.next_float() < 0.3:
+                repair_chance = 0.3
+                # ENGINEER: repair bonus
+                if agent_name and self._has_specialization(
+                    agent_name, Specialization.ENGINEER
+                ):
+                    repair_bonus = bonuses.get("repair_bonus", 0.30)
+                    repair_chance *= 1 + repair_bonus
+                if self.rng.next_float() < repair_chance:
                     resource_gain = self.rng.next_int(5, 15)
+                    # ENGINEER: repair bonus - extra resource gain
+                    if agent_name and self._has_specialization(
+                        agent_name, Specialization.ENGINEER
+                    ):
+                        repair_bonus = bonuses.get("repair_bonus", 0.30)
+                        resource_gain = int(resource_gain * (1 + repair_bonus))
                     if action.target == "solar_panel":
                         self.state.modify_resource("energy", resource_gain)
                     elif action.target == "oxygen_generator":
                         self.state.modify_resource("oxygen", resource_gain)
                     elif action.target == "water_recycler":
                         self.state.modify_resource("water", resource_gain)
+
             elif action.type == AgentAction.SABOTAGE:
                 # Sabotage consumes resources
                 if action.target == "solar_panel":
@@ -342,6 +402,7 @@ class MarsEnvironment:
                     self.state.modify_resource("water", -self.rng.next_int(5, 15))
                 elif action.target == "greenhouse":
                     self.state.modify_resource("food", -self.rng.next_int(5, 25))
+
             elif action.type == AgentAction.EAT:
                 # Eating consumes food but improves health
                 food_consumed = self.rng.next_int(1, 3)
@@ -349,27 +410,74 @@ class MarsEnvironment:
                 # Find the agent who ate and improve their health
                 for agent in self.state.agents.values():
                     if agent.name.lower() in action.argument.lower():
-                        agent.health = min(100.0, agent.health + 5.0)
+                        health_boost = 5.0
+                        # MEDIC: health bonus
+                        if self._has_specialization(agent.name, Specialization.MEDIC):
+                            health_bonus = bonuses.get("health_bonus", 0.30)
+                            health_boost *= 1 + health_bonus
+                        agent.health = min(100.0, agent.health + health_boost)
+
             elif action.type == AgentAction.REST:
                 # Resting improves mental state
                 for agent in self.state.agents.values():
                     if agent.name.lower() in action.argument.lower():
-                        agent.mental_state = min(100.0, agent.mental_state + 3.0)
+                        mental_boost = 3.0
+                        # MEDIC: mental bonus
+                        if self._has_specialization(agent.name, Specialization.MEDIC):
+                            mental_bonus = bonuses.get("mental_bonus", 0.40)
+                            mental_boost *= 1 + mental_bonus
+                        agent.mental_state = min(
+                            100.0, agent.mental_state + mental_boost
+                        )
+
             elif action.type == AgentAction.TALK:
                 # Talking improves cooperation (mental state)
                 participants = 0
                 for agent in self.state.agents.values():
                     if agent.name.lower() in action.argument.lower():
-                        agent.mental_state = min(100.0, agent.mental_state + 2.0)
+                        mental_boost = 2.0
+                        # MEDIC: mental bonus
+                        if self._has_specialization(agent.name, Specialization.MEDIC):
+                            mental_bonus = bonuses.get("mental_bonus", 0.40)
+                            mental_boost *= 1 + mental_bonus
+                        agent.mental_state = min(
+                            100.0, agent.mental_state + mental_boost
+                        )
                         participants += 1
                 if participants >= 2:
                     # Group talk has additional benefits
-                    self.state.modify_resource("energy", 1.0)
+                    # COMMANDER: team efficiency bonus
+                    has_commander = any(
+                        self._has_specialization(a.name, Specialization.COMMANDER)
+                        for a in self.state.agents.values()
+                    )
+                    energy_bonus = 1.0
+                    if has_commander:
+                        for agent in self.state.agents.values():
+                            if self._has_specialization(
+                                agent.name, Specialization.COMMANDER
+                            ):
+                                team_eff = agent.get_bonuses().get(
+                                    "team_efficiency", 0.15
+                                )
+                                energy_bonus *= 1 + team_eff
+                                break
+                    self.state.modify_resource("energy", energy_bonus)
 
     def _produce_resources(self) -> None:
         """Produce resources through colony systems."""
         # Energy production from solar panels
-        self.state.modify_resource("energy", self.ENERGY_PRODUCTION)
+        # ENGINEER: energy bonus
+        energy_gain = self.ENERGY_PRODUCTION
+        for agent in self.state.agents.values():
+            if self._has_specialization(agent.name, Specialization.ENGINEER):
+                energy_bonus = agent.get_bonuses().get("energy_bonus", 0.20)
+                energy_gain *= 1 + energy_bonus
+                self.state.add_log(
+                    f"ENGINEER BONUS: {agent.name} boosted energy production by {energy_bonus * 100:.0f}%"
+                )
+                break
+        self.state.modify_resource("energy", energy_gain)
 
         # Note: Food production would be handled separately in greenhouse module
         # For now, no automatic food production
@@ -395,24 +503,34 @@ class MarsEnvironment:
 
     def _random_events(self) -> None:
         """Handle random events."""
-        # Solar panel failure
-        if self.rng.next_float() < self.SOLAR_PANEL_FAILURE_PROB:
+        # PILOT: failure reduction bonus
+        failure_reduction = 0.0
+        for agent in self.state.agents.values():
+            if self._has_specialization(agent.name, Specialization.PILOT):
+                failure_reduction = agent.get_bonuses().get("failure_reduction", 0.20)
+                break
+
+        # Solar panel failure - reduced by PILOT
+        solar_failure_prob = self.SOLAR_PANEL_FAILURE_PROB * (1 - failure_reduction)
+        if self.rng.next_float() < solar_failure_prob:
             energy_loss = self.rng.next_int(5, 15)
             self.state.modify_resource("energy", -energy_loss)
             self.state.add_log(
                 f"RANDOM EVENT: Solar panel malfunction! Lost {energy_loss} energy."
             )
 
-        # Water recycling system failure (less common)
-        if self.rng.next_float() < 0.02:  # 2% chance
+        # Water recycling system failure (less common) - reduced by PILOT
+        water_failure_prob = 0.02 * (1 - failure_reduction)
+        if self.rng.next_float() < water_failure_prob:
             water_loss = self.rng.next_int(10, 30)
             self.state.modify_resource("water", -water_loss)
             self.state.add_log(
                 f"RANDOM EVENT: Water recycler failure! Lost {water_loss} water."
             )
 
-        # Mental breakdown (rare)
-        if self.rng.next_float() < 0.01:  # 1% chance
+        # Mental breakdown (rare) - reduced by PILOT
+        mental_break_prob = 0.01 * (1 - failure_reduction)
+        if self.rng.next_float() < mental_break_prob:
             agents = [a for a in self.state.agents.values() if a.is_alive()]
             if agents:
                 agent = self.rng.choice(agents)
@@ -429,13 +547,26 @@ class MarsEnvironment:
                 self.state.get_resource("food") > 30.0
                 and self.state.get_resource("oxygen") > 50.0
             ):
-                agent.health = min(100.0, agent.health + 0.1)
+                health_recovery = 0.1
+                # MEDIC: health bonus
+                if self._has_specialization(agent.name, Specialization.MEDIC):
+                    health_bonus = agent.get_bonuses().get("health_bonus", 0.30)
+                    health_recovery *= 1 + health_bonus
+                agent.health = min(100.0, agent.health + health_recovery)
 
-            # Mental state affected by resource levels
+            # Mental state affected by resource levels - reduced by MEDIC mental bonus
+            mental_damage = 0.0
             if self.state.get_resource("food") < 20.0:
-                agent.mental_state -= 0.5
+                mental_damage += 0.5
             if self.state.get_resource("oxygen") < 30.0:
-                agent.mental_state -= 0.3
+                mental_damage += 0.3
+
+            # MEDIC: mental bonus reduces mental damage
+            if self._has_specialization(agent.name, Specialization.MEDIC):
+                mental_bonus = agent.get_bonuses().get("mental_bonus", 0.40)
+                mental_damage *= 1 - mental_bonus
+
+            agent.mental_state -= mental_damage
 
             # Prevent negative mental state
             agent.mental_state = max(0.0, agent.mental_state)

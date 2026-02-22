@@ -4,6 +4,43 @@ import copy
 from enum import Enum
 
 
+class Specialization(Enum):
+    ENGINEER = "engineer"
+    SCIENTIST = "scientist"
+    EXPLORER = "explorer"
+    MEDIC = "medic"
+    PILOT = "pilot"
+    COMMANDER = "commander"
+
+
+SPECIALIZATION_BONUSES = {
+    Specialization.ENGINEER: {
+        "repair_bonus": 0.30,
+        "energy_bonus": 0.20,
+    },
+    Specialization.SCIENTIST: {
+        "research_bonus": 0.40,
+        "food_bonus": 0.20,
+    },
+    Specialization.EXPLORER: {
+        "discovery_bonus": 0.50,
+        "range_bonus": 0.30,
+    },
+    Specialization.MEDIC: {
+        "health_bonus": 0.30,
+        "mental_bonus": 0.40,
+    },
+    Specialization.PILOT: {
+        "emergency_bonus": 0.30,
+        "failure_reduction": 0.20,
+    },
+    Specialization.COMMANDER: {
+        "team_efficiency": 0.15,
+        "mutiny_reduction": 0.10,
+    },
+}
+
+
 class DecisionType(Enum):
     METEOR_STRIKE = "meteor_strike"
     ENERGY_CRISIS = "energy_crisis"
@@ -116,6 +153,7 @@ class Agent:
     health: float = 100.0  # 0-100%
     mental_state: float = 80.0  # mental stability 0-100%
     location: str = "habitat"  # habitat, greenhouse, solar_farm, etc.
+    specialization: Optional[str] = None  # Agent specialization type
 
     def __post_init__(self):
         """Validate initial values."""
@@ -126,6 +164,22 @@ class Agent:
         """Check if agent is alive."""
         return self.health > 0.0
 
+    def get_specialization_enum(self) -> Optional[Specialization]:
+        """Get specialization as enum."""
+        if self.specialization:
+            try:
+                return Specialization(self.specialization)
+            except ValueError:
+                return None
+        return None
+
+    def get_bonuses(self) -> Dict[str, float]:
+        """Get bonuses for this agent's specialization."""
+        spec = self.get_specialization_enum()
+        if spec and spec in SPECIALIZATION_BONUSES:
+            return SPECIALIZATION_BONUSES[spec].copy()
+        return {}
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -133,6 +187,7 @@ class Agent:
             "health": self.health,
             "mental_state": self.mental_state,
             "location": self.location,
+            "specialization": self.specialization,
         }
 
     @classmethod
@@ -143,6 +198,7 @@ class Agent:
             health=data.get("health", 100.0),
             mental_state=data.get("mental_state", 80.0),
             location=data.get("location", "habitat"),
+            specialization=data.get("specialization"),
         )
 
 
@@ -261,11 +317,20 @@ class GameState:
                 "Pilot Okafor",
             ]
 
+        specialization_map = {
+            "Commander Chen": Specialization.COMMANDER,
+            "Dr. Rodriguez": Specialization.MEDIC,
+            "Engineer Tanaka": Specialization.ENGINEER,
+            "Botanist Schmidt": Specialization.SCIENTIST,
+            "Pilot Okafor": Specialization.PILOT,
+        }
+
         state = cls()
 
-        # Initialize crew
+        # Initialize crew with specializations
         for name in crew_names:
-            state.agents[name] = Agent(name=name)
+            spec = specialization_map.get(name, Specialization.EXPLORER)
+            state.agents[name] = Agent(name=name, specialization=spec.value)
 
         # Add initial log
         state.add_log(

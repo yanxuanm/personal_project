@@ -58,7 +58,10 @@ app = FastAPI(
 
 # Enable CORS - restrict to specific origins for security
 # Use ALLOWED_ORIGINS env var (comma-separated) or default to common dev origins
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8000,http://127.0.0.1:3000,http://127.0.0.1:8000").split(",")
+allowed_origins = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:3000,http://localhost:8000,http://127.0.0.1:3000,http://127.0.0.1:8000",
+).split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -119,6 +122,7 @@ async def get_state():
                 "health": agent.health,
                 "mental_state": agent.mental_state,
                 "location": agent.location,
+                "specialization": agent.specialization,
                 "is_alive": agent.is_alive(),
             }
 

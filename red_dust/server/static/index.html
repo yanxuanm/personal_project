@@ -293,6 +293,9 @@
                                     <div>
                                         <h3 class="font-bold text-lg">{{ name }}</h3>
                                         <p class="text-sm text-amber-300">{{ getAgentRole(name) }}</p>
+                                        <p v-if="getAgentSpecialization(agent)" class="text-xs" :class="getAgentSpecialization(agent).color">
+                                            {{ getAgentSpecialization(agent).icon }} {{ getAgentSpecialization(agent).label }}
+                                        </p>
                                     </div>
                                 </div>
                                 

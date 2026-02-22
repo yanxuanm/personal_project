@@ -1,4 +1,5 @@
 pyproject.toml
+red_dust/README.md
 red_dust/__init__.py
 red_dust/main.py
 red_dust/simulation.py

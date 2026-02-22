@@ -6,5 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "red-dust"
 version = "0.1.0"
 
-[tool.setuptools.packages.find]
-where = ["."]
+[tool.setuptools]
+packages = ["red_dust", "red_dust.agents", "red_dust.env", "red_dust.harness", "red_dust.server", "red_dust.tests"]
+
+[tool.setuptools.package-data]
+red_dust = ["*.md"]

@@ -447,6 +447,7 @@ createApp({
             getAgentColor,
             getAgentInitial,
             getAgentRole,
+            getAgentSpecialization,
             getLogColorClass,
             extractTick,
             getLogTime,

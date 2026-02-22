@@ -117,7 +117,7 @@ async def get_state():
 
         # Add agent details
         for name, agent in state.agents.items():
-            response["agents"][name] = {
+            agent_data = {
                 "name": agent.name,
                 "health": agent.health,
                 "mental_state": agent.mental_state,
@@ -125,6 +125,9 @@ async def get_state():
                 "specialization": agent.specialization,
                 "is_alive": agent.is_alive(),
             }
+            if agent.secret_objective:
+                agent_data["secret_objective"] = agent.secret_objective.to_dict()
+            response["agents"][name] = agent_data
 
         return response
 

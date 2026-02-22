@@ -8,6 +8,7 @@ from .schema import (
     MissionStatus,
     Specialization,
     SPECIALIZATION_BONUSES,
+    SecretObjectiveType,
 )
 from ..harness.rand_gen import DeterministicRandom
 from ..agents.schema import AgentAction
@@ -215,6 +216,12 @@ class MarsEnvironment:
         if self.state.rng_state is None:
             self.state.rng_state = self.rng.get_state()
 
+        # Assign secret objectives if not already assigned
+        if not any(
+            agent.secret_objective is not None for agent in self.state.agents.values()
+        ):
+            self.state.assign_secret_objectives(self.rng)
+
     def _get_agent_bonuses(self, agent_name: str) -> Dict[str, float]:
         """Get specialization bonuses for an agent."""
         agent = self.state.agents.get(agent_name)
@@ -229,17 +236,28 @@ class MarsEnvironment:
             return agent.specialization == spec.value
         return False
 
-    def step(self, actions: Optional[List[AgentAction]] = None) -> bool:
+    def step(
+        self,
+        actions: Optional[List[AgentAction]] = None,
+        agent_names: Optional[List[str]] = None,
+    ) -> bool:
         """Execute one simulation tick.
 
         Args:
             actions: List of agent actions to process this tick
+            agent_names: List of agent names corresponding to actions
 
         Returns:
             True if game is over, False otherwise
         """
         if actions is None:
             actions = []
+        if agent_names is None:
+            agent_names = []
+
+        # Initialize sabotage tracking if needed
+        if not hasattr(self.state, "_sabotage_by_agent"):
+            self.state._sabotage_by_agent = {}
 
         # Increment tick counter
         self.state.tick += 1
@@ -254,7 +272,7 @@ class MarsEnvironment:
         self._consume_resources(num_alive)
 
         # Process agent actions
-        self._process_actions(actions)
+        self._process_actions(actions, agent_names)
 
         # Resource production
         self._produce_resources()
@@ -276,6 +294,9 @@ class MarsEnvironment:
 
         # Update agent states
         self._update_agents(alive_agents)
+
+        # Check secret objectives
+        self._check_secret_objectives(actions)
 
         # Check game over
         if self.state.is_game_over():
@@ -319,17 +340,30 @@ class MarsEnvironment:
                     f"WARNING: {resource} critically low ({amount:.1f} units)"
                 )
 
-    def _process_actions(self, actions: List[AgentAction]) -> None:
+    def _process_actions(
+        self, actions: List[AgentAction], agent_names: List[str] = None
+    ) -> None:
         """Process agent actions and apply their effects to the game state.
 
         Args:
             actions: List of agent actions to process
+            agent_names: List of agent names corresponding to actions
         """
         # Log all actions
-        for action in actions:
+        for i, action in enumerate(actions):
+            agent_name = (
+                agent_names[i] if agent_names and i < len(agent_names) else "Unknown"
+            )
             self.state.add_log(
                 f"{action.type.upper()}: {action.target} - {action.argument}"
             )
+            # Track sabotage actions
+            if action.type == AgentAction.SABOTAGE:
+                if not hasattr(self.state, "_sabotage_by_agent"):
+                    self.state._sabotage_by_agent = {}
+                self.state._sabotage_by_agent[agent_name] = (
+                    self.state._sabotage_by_agent.get(agent_name, 0) + 1
+                )
 
         # Apply action effects
         for action in actions:
@@ -575,6 +609,90 @@ class MarsEnvironment:
             if agent.health <= 0.0:
                 agent.health = 0.0
                 self.state.add_log(f"TRAGEDY: {agent.name} has died.")
+
+    def _check_secret_objectives(self, actions: List[AgentAction]) -> None:
+        """Check and update secret objective status."""
+        recent_logs = (
+            self.state.logs[-10:] if len(self.state.logs) >= 10 else self.state.logs
+        )
+
+        for agent in self.state.agents.values():
+            if agent.secret_objective is None:
+                continue
+
+            obj = agent.secret_objective
+            if obj.completed or obj.failed:
+                continue
+
+            obj_type = obj.type
+
+            if obj_type == SecretObjectiveType.BETRAY_LOVER:
+                if obj.target_agent:
+                    target = self.state.agents.get(obj.target_agent)
+                    if target and not target.is_alive():
+                        obj.completed = True
+                        self.state.add_log(
+                            f"SECRET OBJECTIVE COMPLETE: {agent.name} betrayed {obj.target_agent}!"
+                        )
+
+            elif obj_type == SecretObjectiveType.STEAL_RESOURCES:
+                sabotage_by_agent = getattr(self.state, "_sabotage_by_agent", {})
+                sabotage_count = sabotage_by_agent.get(agent.name, 0)
+                if sabotage_count >= 3:
+                    obj.completed = True
+                    self.state.add_log(
+                        f"SECRET OBJECTIVE COMPLETE: {agent.name} stole resources through sabotage!"
+                    )
+
+            elif obj_type == SecretObjectiveType.SABOTAGE:
+                sabotage_by_agent = getattr(self.state, "_sabotage_by_agent", {})
+                sabotage_count = sabotage_by_agent.get(agent.name, 0)
+                if sabotage_count >= 2:
+                    obj.completed = True
+                    self.state.add_log(
+                        f"SECRET OBJECTIVE COMPLETE: {agent.name} completed sabotage missions!"
+                    )
+                elif sabotage_count > 0 and self.state.tick % 5 == 0:
+                    self.state.add_log(
+                        f"SECRET OBJECTIVE PROGRESS: {agent.name} has completed {sabotage_count}/2 sabotage missions"
+                    )
+
+            elif obj_type == SecretObjectiveType.BECOME_LEADER:
+                if agent.mental_state >= 90 and agent.health >= 80:
+                    leader_progress = getattr(agent, "_leader_progress", 0) + 1
+                    agent._leader_progress = leader_progress
+                    if leader_progress >= 10:
+                        obj.completed = True
+                        self.state.add_log(
+                            f"SECRET OBJECTIVE COMPLETE: {agent.name} became the leader!"
+                        )
+
+            elif obj_type == SecretObjectiveType.SURVIVE_SILENTLY:
+                low_profile = getattr(agent, "_low_profile_ticks", 0)
+                if agent.health < 50 and agent.mental_state < 50:
+                    agent._low_profile_ticks = low_profile + 1
+                else:
+                    agent._low_profile_ticks = max(0, low_profile - 1)
+                if agent._low_profile_ticks >= 20:
+                    obj.completed = True
+                    self.state.add_log(
+                        f"SECRET OBJECTIVE COMPLETE: {agent.name} survived silently!"
+                    )
+
+            elif obj_type == SecretObjectiveType.PROTECT_SOMEONE:
+                if obj.target_agent:
+                    target = self.state.agents.get(obj.target_agent)
+                    if target and target.is_alive():
+                        if self.state.tick >= 50:
+                            obj.completed = True
+                            self.state.add_log(
+                                f"SECRET OBJECTIVE COMPLETE: {agent.name} protected {obj.target_agent}!"
+                            )
+                    elif not target or not target.is_alive():
+                        obj.failed = True
+                        self.state.add_log(
+                            f"SECRET OBJECTIVE FAILED: {agent.name} failed to protect {obj.target_agent}!"
+                        )
 
     def _generate_decision(self) -> None:
         """Generate a random decision if conditions allow."""

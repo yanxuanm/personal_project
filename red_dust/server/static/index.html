@@ -336,6 +336,20 @@
                                 </div>
                             </div>
                             
+                            <!-- Secret Objective -->
+                            <div v-if="agent.secret_objective" class="mb-3 p-2 bg-purple-900/30 border border-purple-500/50 rounded">
+                                <div class="text-xs text-purple-400 font-bold mb-1">SECRET OBJECTIVE</div>
+                                <div class="text-xs text-gray-300">{{ agent.secret_objective.description }}</div>
+                                <div v-if="agent.secret_objective.target_agent" class="text-xs text-purple-300 mt-1">
+                                    Target: {{ agent.secret_objective.target_agent }}
+                                </div>
+                                <div class="flex gap-2 mt-2">
+                                    <span v-if="agent.secret_objective.completed" class="text-xs bg-green-600 text-white px-2 py-0.5 rounded">COMPLETED</span>
+                                    <span v-else-if="agent.secret_objective.failed" class="text-xs bg-red-600 text-white px-2 py-0.5 rounded">FAILED</span>
+                                    <span v-else class="text-xs bg-purple-600 text-white px-2 py-0.5 rounded">ACTIVE</span>
+                                </div>
+                            </div>
+                            
                             <!-- Agent Stats -->
                             <div class="grid grid-cols-2 gap-2 text-xs mt-4">
                                 <div class="text-center p-2 bg-gray-800">

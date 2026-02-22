@@ -13,6 +13,55 @@ class Specialization(Enum):
     COMMANDER = "commander"
 
 
+class SecretObjectiveType(Enum):
+    BETRAY_LOVER = "betray_lover"
+    STEAL_RESOURCES = "steal_resources"
+    SABOTAGE = "sabotage"
+    BECOME_LEADER = "become_leader"
+    SURVIVE_SILENTLY = "survive_silently"
+    PROTECT_SOMEONE = "protect_someone"
+
+
+SECRET_OBJECTIVE_DESCRIPTIONS = {
+    SecretObjectiveType.BETRAY_LOVER: "Betray your closest ally at a critical moment",
+    SecretObjectiveType.STEAL_RESOURCES: "Secretly steal 100+ units of any resource",
+    SecretObjectiveType.SABOTAGE: "Sabotage a key system without getting caught",
+    SecretObjectiveType.BECOME_LEADER: "Become the colony leader through influence",
+    SecretObjectiveType.SURVIVE_SILENTLY: "Survive without drawing attention to yourself",
+    SecretObjectiveType.PROTECT_SOMEONE: "Ensure a specific agent survives to the end",
+}
+
+
+class SecretObjective:
+    def __init__(
+        self, objective_type: SecretObjectiveType, target_agent: Optional[str] = None
+    ):
+        self.type = objective_type
+        self.target_agent = target_agent
+        self.completed = False
+        self.failed = False
+        self.description = SECRET_OBJECTIVE_DESCRIPTIONS.get(objective_type, "")
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "type": self.type.value,
+            "description": self.description,
+            "target_agent": self.target_agent,
+            "completed": self.completed,
+            "failed": self.failed,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SecretObjective":
+        obj = cls(
+            objective_type=SecretObjectiveType(data["type"]),
+            target_agent=data.get("target_agent"),
+        )
+        obj.completed = data.get("completed", False)
+        obj.failed = data.get("failed", False)
+        return obj
+
+
 SPECIALIZATION_BONUSES = {
     Specialization.ENGINEER: {
         "repair_bonus": 0.30,
@@ -154,6 +203,7 @@ class Agent:
     mental_state: float = 80.0  # mental stability 0-100%
     location: str = "habitat"  # habitat, greenhouse, solar_farm, etc.
     specialization: Optional[str] = None  # Agent specialization type
+    secret_objective: Optional[SecretObjective] = None  # Hidden secret objective
 
     def __post_init__(self):
         """Validate initial values."""
@@ -188,18 +238,24 @@ class Agent:
             "mental_state": self.mental_state,
             "location": self.location,
             "specialization": self.specialization,
+            "secret_objective": self.secret_objective.to_dict()
+            if self.secret_objective
+            else None,
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Agent":
         """Create from dictionary."""
-        return cls(
+        agent = cls(
             name=data["name"],
             health=data.get("health", 100.0),
             mental_state=data.get("mental_state", 80.0),
             location=data.get("location", "habitat"),
             specialization=data.get("specialization"),
         )
+        if data.get("secret_objective"):
+            agent.secret_objective = SecretObjective.from_dict(data["secret_objective"])
+        return agent
 
 
 @dataclass
@@ -338,3 +394,21 @@ class GameState:
         )
 
         return state
+
+    def assign_secret_objectives(self, rng) -> None:
+        """Assign random secret objectives to all agents."""
+        objective_types = list(SecretObjectiveType)
+        agent_names = list(self.agents.keys())
+
+        for name in agent_names:
+            if len(agent_names) > 1:
+                target_options = [n for n in agent_names if n != name]
+                target = rng.choice(target_options) if target_options else None
+            else:
+                target = None
+
+            obj_type = rng.choice(objective_types)
+            self.agents[name].secret_objective = SecretObjective(
+                objective_type=obj_type,
+                target_agent=target,
+            )

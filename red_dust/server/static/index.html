@@ -1251,25 +1251,37 @@
                             addNotification(
                                 'decision',
                                 '⚠️ DECISION REQUIRED',
-                                decision.title || 'A critical decision needs your attention',
+                                decision.title || decision.description || 'A critical decision needs your attention',
                                 '⚠️'
                             );
                         });
                     }
                     
-                    // Check for new missions
-                    if (current.missions) {
-                        const newMissions = current.missions.filter(
-                            m => !prevState.value.missions.some(pm => pm.id === m.id)
-                        );
+                    // Check for new missions - show ALL active missions on initial load
+                    if (current.missions && current.missions.length > 0) {
+                        const prevMissionIds = prevState.value.missions.map(m => m.id);
+                        const newMissions = current.missions.filter(m => !prevMissionIds.includes(m.id));
+                        
                         newMissions.forEach(mission => {
                             addNotification(
                                 'mission-new',
                                 '🚀 NEW MISSION',
-                                mission.title || 'A new mission has been assigned',
+                                mission.title + ' - ' + mission.description || 'A new mission has been assigned',
                                 '🚀'
                             );
                         });
+                        
+                        // Also show any missions that were not in previous state
+                        if (prevState.value.missions.length === 0 && current.missions.length > 0) {
+                            current.missions.forEach(mission => {
+                                addNotification(
+                                    'mission-new',
+                                    '🚀 NEW MISSION',
+                                    mission.title + ' - ' + mission.description || 'A new mission has been assigned',
+                                    '🚀'
+                                );
+                            });
+                        }
                         
                         // Check for completed missions
                         current.missions.forEach(mission => {

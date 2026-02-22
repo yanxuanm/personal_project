@@ -10,7 +10,7 @@ Project Red Dust - 游戏玩法演示脚本
 
 import requests
 import time
-import json
+# import json  # unused
 
 BASE_URL = "http://localhost:8000/api"
 
@@ -248,8 +248,8 @@ def demonstrate_gameplay():
     print_header("第4部分：时间旅行 - 改变历史")
     print_step("记录当前状态（tick 5）")
     tick5_resources = state['resources'].copy()
-    tick5_alive = alive_count
-    print_info(f"当前状态保存在记忆库中")
+    # tick5_alive = alive_count  # unused
+    print_info("当前状态保存在记忆库中")
     time.sleep(1)
     
     # 继续运行到tick 10

@@ -25,36 +25,73 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest
+          pip install pytest pytest-cov
           pip install -e .
 
-      - name: Run tests
-        run: pytest
+      - name: Run tests with coverage
+        run: pytest --cov=red_dust --cov-report=xml
 
-      # ============================================================
-      # Add more CI steps below as needed. Examples:
-      # ============================================================
+      - name: Upload coverage
+        if: matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
 
-      # Run linting (uncomment and customize):
-      # - name: Run linting
-      #   run: |
-      #     pip install ruff
-      #     ruff check .
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
 
-      # Run type checking (uncomment and customize):
-      # - name: Run type checking
-      #   run: |
-      #     pip install mypy
-      #     mypy .
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-      # Run code formatting check (uncomment and customize):
-      # - name: Check code formatting
-      #   run: |
-      #     pip install black
-      #     black --check .
+      - name: Install dependencies
+        run: pip install ruff
 
-      # Run security audit (uncomment and customize):
-      # - name: Security audit
-      #   run: |
-      #     pip install safety
-      #     safety check
+      - name: Run ruff linter
+        run: ruff check .
+
+      - name: Run ruff formatter check
+        run: ruff format --check .
+
+  type-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install mypy
+          pip install -e .
+
+      - name: Run mypy type checking
+        run: mypy red_dust --ignore-missing-imports
+
+  security:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install safety bandit
+
+      - name: Run security audit
+        run: |
+          safety check --json | tee safety-report.json || true
+          bandit -r red_dust -f json -o bandit-report.json || true

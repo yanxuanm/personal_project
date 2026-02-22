@@ -12,3 +12,6 @@ venv/
 
 # Don't ignore red_dust/env
 !red_dust/env/
+
+# Screenshots
+*.png

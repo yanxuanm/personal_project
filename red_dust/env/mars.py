@@ -1,7 +1,179 @@
-from typing import Optional, List
-from .schema import GameState
+from typing import Optional, List, Dict, Any
+from .schema import (
+    GameState,
+    Decision,
+    Mission,
+    DecisionType,
+    MissionType,
+    MissionStatus,
+)
 from ..harness.rand_gen import DeterministicRandom
 from ..agents.schema import AgentAction
+
+
+DECISION_TEMPLATES = {
+    DecisionType.METEOR_STRIKE: {
+        "title": "陨石来袭！METEOR STRIKE IMMINENT!",
+        "description": "雷达探测到大型陨石正在接近殖民地！需要立即做出决定。",
+        "options": [
+            {"text": "启动防御护盾 (消耗100能量)", "effects": {"energy": -100}},
+            {"text": "疏散人员到避难所 (无消耗)", "effects": {}},
+            {
+                "text": "发射拦截导弹 (消耗50能量, 30水)",
+                "effects": {"energy": -50, "water": -30},
+            },
+        ],
+    },
+    DecisionType.ENERGY_CRISIS: {
+        "title": "能源危机！ENERGY CRISIS!",
+        "description": "太阳能板故障，能源储备严重不足！",
+        "options": [
+            {"text": "关闭非必要系统 (保存50能量)", "effects": {"energy": 50}},
+            {"text": "启动备用发电机 (消耗30食物)", "effects": {"food": -30}},
+            {"text": "紧急抢修太阳能板 (无消耗, 成功率50%)", "effects": {}},
+        ],
+    },
+    DecisionType.WATER_CONTAMINATION: {
+        "title": "水源污染！WATER CONTAMINATION!",
+        "description": "水循环系统检测到有害物质！",
+        "options": [
+            {"text": "丢弃所有受污染水源 (损失100水)", "effects": {"water": -100}},
+            {"text": "启用净化系统 (消耗40能量)", "effects": {"energy": -40}},
+            {"text": "使用紧急过滤装置 (消耗20食物)", "effects": {"food": -20}},
+        ],
+    },
+    DecisionType.SOLAR_STORM: {
+        "title": "太阳风暴！SOLAR STORM WARNING!",
+        "description": "强烈的太阳风暴即将来袭，可能损坏电子设备！",
+        "options": [
+            {"text": "关闭所有电子设备 (无消耗)", "effects": {}},
+            {"text": "增强防护罩 (消耗80能量)", "effects": {"energy": -80}},
+            {"text": "疏散到地下掩体 (无消耗)", "effects": {}},
+        ],
+    },
+    DecisionType.CREW_MUTINY: {
+        "title": "船员叛变！CREW MUTINY!",
+        "description": "船员对任务分配感到不满，可能发生叛变！",
+        "options": [
+            {"text": "增加食物配给 (消耗30食物)", "effects": {"food": -30}},
+            {"text": "召开全体会议 (无消耗)", "effects": {}},
+            {"text": "重新分配任务 (无消耗)", "effects": {}},
+        ],
+    },
+    DecisionType.EQUIPMENT_FAILURE: {
+        "title": "设备故障！EQUIPMENT FAILURE!",
+        "description": "关键生命维持设备出现故障！",
+        "options": [
+            {"text": "紧急修复 (消耗50能量)", "effects": {"energy": -50}},
+            {"text": "切换到备用设备 (消耗30水)", "effects": {"water": -30}},
+            {"text": "让工程师手动维修 (无消耗)", "effects": {}},
+        ],
+    },
+    DecisionType.SUPPLY_DROP: {
+        "title": "补给空投！SUPPLY DROP AVAILABLE!",
+        "description": "收到地面控制中心的紧急补给信号！",
+        "options": [
+            {
+                "text": "接收所有补给 (增加资源)",
+                "effects": {"oxygen": 50, "water": 50, "energy": 50, "food": 50},
+            },
+            {
+                "text": "只接收关键物资 (增加30氧气, 30水)",
+                "effects": {"oxygen": 30, "water": 30},
+            },
+            {"text": "拒绝接收 (保持现状)", "effects": {}},
+        ],
+    },
+}
+
+
+MISSION_TEMPLATES = {
+    MissionType.PRODUCE_RESOURCES: [
+        {
+            "title": "增加氧气产量",
+            "description": "生产50单位氧气",
+            "target": 50,
+            "resource": "oxygen",
+            "reward": {"energy": 10},
+        },
+        {
+            "title": "收集水资源",
+            "description": "收集40单位水",
+            "target": 40,
+            "resource": "water",
+            "reward": {"energy": 10},
+        },
+        {
+            "title": "发电任务",
+            "description": "产生60单位能量",
+            "target": 60,
+            "resource": "energy",
+            "reward": {"oxygen": 10},
+        },
+        {
+            "title": "食品生产",
+            "description": "生产30单位食物",
+            "target": 30,
+            "resource": "food",
+            "reward": {"water": 10},
+        },
+    ],
+    MissionType.MAINTAIN_SYSTEMS: [
+        {
+            "title": "系统维护",
+            "description": "修复关键设备",
+            "target": 1,
+            "resource": "repair",
+            "reward": {"energy": 20},
+        },
+        {
+            "title": "清洁太阳能板",
+            "description": "清洁太阳能板提高效率",
+            "target": 1,
+            "resource": "clean",
+            "reward": {"energy": 15},
+        },
+        {
+            "title": "检查生命维持",
+            "description": "全面检查生命维持系统",
+            "target": 1,
+            "resource": "check",
+            "reward": {"oxygen": 15},
+        },
+    ],
+    MissionType.EXPLORE: [
+        {
+            "title": "探索新区域",
+            "description": "探索周边地区",
+            "target": 1,
+            "resource": "explore",
+            "reward": {"energy": 30},
+        },
+        {
+            "title": "采集样本",
+            "description": "采集岩石样本",
+            "target": 1,
+            "resource": "sample",
+            "reward": {"food": 20},
+        },
+    ],
+    MissionType.RESEARCH: [
+        {
+            "title": "研究新算法",
+            "description": "优化资源利用",
+            "target": 1,
+            "resource": "research",
+            "reward": {"energy": 25},
+        },
+        {
+            "title": "分析数据",
+            "description": "分析气象数据",
+            "target": 1,
+            "resource": "analyze",
+            "reward": {"water": 20},
+        },
+    ],
+}
 
 
 class MarsEnvironment:
@@ -20,6 +192,12 @@ class MarsEnvironment:
     # Random event probabilities
     SOLAR_PANEL_FAILURE_PROB = 0.05  # 5% chance per tick
     LIFE_SUPPORT_FAILURE_PROB = 0.03  # 3% chance when energy is low
+
+    # Decision and mission probabilities
+    DECISION_PROB = 0.08  # 8% chance to trigger a decision per tick
+    MISSION_PROB = 0.10  # 10% chance to generate a new mission per tick
+    MAX_PENDING_DECISIONS = 3
+    MAX_MISSIONS = 5
 
     def __init__(self, state: GameState, rng: DeterministicRandom):
         """Initialize environment with game state and random generator.
@@ -70,6 +248,15 @@ class MarsEnvironment:
 
         # Random events
         self._random_events()
+
+        # Generate new decisions (if conditions allow)
+        self._generate_decision()
+
+        # Generate new missions (if conditions allow)
+        self._generate_mission()
+
+        # Update missions progress
+        self._update_missions(actions)
 
         # Update agent states
         self._update_agents(alive_agents)
@@ -257,6 +444,126 @@ class MarsEnvironment:
             if agent.health <= 0.0:
                 agent.health = 0.0
                 self.state.add_log(f"TRAGEDY: {agent.name} has died.")
+
+    def _generate_decision(self) -> None:
+        """Generate a random decision if conditions allow."""
+        if len(self.state.pending_decisions) >= self.MAX_PENDING_DECISIONS:
+            return
+
+        if self.rng.next_float() > self.DECISION_PROB:
+            return
+
+        decision_types = list(DecisionType)
+        decision_type = self.rng.choice(decision_types)
+        template = DECISION_TEMPLATES[decision_type]
+
+        decision_id = f"decision_{self.state.tick}_{self.rng.next_int(1000, 9999)}"
+        decision = Decision(
+            id=decision_id,
+            type=decision_type.value,
+            title=template["title"],
+            description=template["description"],
+            options=template["options"],
+            tick_created=self.state.tick,
+            resolved=False,
+            chosen_option=None,
+        )
+
+        self.state.pending_decisions.append(decision)
+        self.state.add_log(f"EMERGENCY: {decision.title}")
+
+    def _generate_mission(self) -> None:
+        """Generate a random mission if conditions allow."""
+        if len(self.state.missions) >= self.MAX_MISSIONS:
+            return
+
+        active_missions = [
+            m for m in self.state.missions if m.status == MissionStatus.ACTIVE.value
+        ]
+        if active_missions:
+            return
+
+        if self.rng.next_float() > self.MISSION_PROB:
+            return
+
+        mission_types = list(MissionType)
+        mission_type = self.rng.choice(mission_types)
+        templates = MISSION_TEMPLATES[mission_type]
+        template = self.rng.choice(templates)
+
+        mission_id = f"mission_{self.state.tick}_{self.rng.next_int(1000, 9999)}"
+        reward = template.get("reward", {})
+
+        mission = Mission(
+            id=mission_id,
+            type=mission_type.value,
+            title=template["title"],
+            description=template["description"],
+            target_value=template["target"],
+            current_value=0.0,
+            reward=reward,
+            status=MissionStatus.ACTIVE.value,
+            tick_created=self.state.tick,
+        )
+
+        self.state.missions.append(mission)
+        self.state.add_log(f"MISSION ASSIGNED: {mission.title}")
+
+    def _update_missions(self, actions: List[AgentAction]) -> None:
+        """Update mission progress based on actions and resources."""
+        for mission in self.state.missions:
+            if mission.status != MissionStatus.ACTIVE.value:
+                continue
+
+            if mission.type == MissionType.PRODUCE_RESOURCES.value:
+                resource_name = mission.to_dict().get("resource", "")
+                if resource_name in ["oxygen", "water", "energy", "food"]:
+                    mission.current_value += 2.0
+
+            elif mission.type == MissionType.MAINTAIN_SYSTEMS.value:
+                for action in actions:
+                    if action.type == AgentAction.REPAIR:
+                        mission.current_value += 1.0
+
+            elif mission.type == MissionType.EXPLORE.value:
+                for action in actions:
+                    if action.type == AgentAction.WORK:
+                        mission.current_value += 0.5
+
+            elif mission.type == MissionType.RESEARCH.value:
+                for action in actions:
+                    if action.type == AgentAction.TALK:
+                        mission.current_value += 0.5
+
+            if mission.current_value >= mission.target_value:
+                mission.status = MissionStatus.COMPLETED.value
+                for resource, amount in mission.reward.items():
+                    self.state.modify_resource(resource, amount)
+                self.state.add_log(
+                    f"MISSION COMPLETE: {mission.title} - Rewards: {mission.reward}"
+                )
+
+    def resolve_decision(self, decision_id: str, option_index: int) -> Dict[str, Any]:
+        """Resolve a pending decision with the chosen option."""
+        for decision in self.state.pending_decisions:
+            if decision.id == decision_id:
+                if option_index < 0 or option_index >= len(decision.options):
+                    return {"success": False, "error": "Invalid option index"}
+
+                decision.resolved = True
+                decision.chosen_option = option_index
+                option = decision.options[option_index]
+                effects = option.get("effects", {})
+
+                for resource, amount in effects.items():
+                    self.state.modify_resource(resource, amount)
+
+                self.state.add_log(
+                    f"DECISION RESOLVED: {decision.title} - {option['text']}"
+                )
+                return {"success": True, "effects": effects}
+
+        return {"success": False, "error": "Decision not found"}
 
     def get_status_report(self) -> str:
         """Generate a human-readable status report."""

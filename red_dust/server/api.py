@@ -20,6 +20,7 @@ from pydantic import BaseModel
 import uvicorn
 
 from red_dust.simulation import SimulationController
+from red_dust.env.schema import MissionStatus
 
 
 # Global simulation controller (singleton)
@@ -29,6 +30,11 @@ sim_controller: Optional[SimulationController] = None
 class ResetRequest(BaseModel):
     seed: int = 42
     use_llm: bool = False
+
+
+class DecisionResolveRequest(BaseModel):
+    decision_id: str
+    option_index: int
 
 
 def init_simulation(seed: int = 42, use_llm: bool = False):
@@ -94,6 +100,14 @@ async def get_state():
             "history_size": len(sim_controller.history),
             "game_over": state.is_game_over(),
             "status": status,
+            "pending_decisions": [
+                d.to_dict() for d in state.pending_decisions if not d.resolved
+            ],
+            "missions": [
+                m.to_dict()
+                for m in state.missions
+                if m.status == MissionStatus.ACTIVE.value
+            ],
         }
 
         # Add agent details
@@ -175,6 +189,33 @@ async def reset_simulation(request: ResetRequest):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error resetting simulation: {str(e)}"
+        )
+
+
+@app.post("/api/decision/resolve")
+async def resolve_decision(request: DecisionResolveRequest):
+    """Resolve a pending decision with the chosen option."""
+    if sim_controller is None:
+        raise HTTPException(status_code=500, detail="Simulation not initialized")
+
+    try:
+        result = sim_controller.env.resolve_decision(
+            request.decision_id, request.option_index
+        )
+
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=400,
+                detail=result.get("error", "Failed to resolve decision"),
+            )
+
+        return await get_state()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error resolving decision: {str(e)}"
         )
 
 

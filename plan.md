@@ -54,10 +54,12 @@
 **描述**: 随机触发的资源枯竭事件，需要玩家做决策
 
 **子任务**:
-- [ ] 3.1 定义危机类型: OXYGEN_CRISIS, WATER_CRISIS, ENERGY_CRISIS, FOOD_CRISIS
-- [ ] 3.2 危机触发条件 (资源 < 阈值)
-- [ ] 3.3 决策选项 (牺牲/救援/冒险)
-- [ ] 3.4 后果计算
+- [x] 3.1 定义危机类型: OXYGEN_CRISIS, WATER_CRISIS, ENERGY_CRISIS, FOOD_CRISIS
+- [x] 3.2 危机触发条件 (资源 < 阈值)
+- [x] 3.3 决策选项 (牺牲/救援/冒险)
+- [x] 3.4 后果计算
+
+**状态**: ✅ 完成
 
 ---
 

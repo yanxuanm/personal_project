@@ -112,7 +112,7 @@ createApp({
             
             loading.value = true;
             try {
-                await axios.post(`${apiBase}/reset`);
+                await axios.post(`${apiBase}/reset`, {});
                 await fetchState();
                 await fetchHistory();
             } catch (error) {

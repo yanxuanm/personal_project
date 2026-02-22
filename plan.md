@@ -40,10 +40,12 @@
 **描述**: 每个 agent 有只有自己知道的目标
 
 **子任务**:
-- [ ] 2.1 添加 SecretObjective 模型
-- [ ] 2.2 目标类型: BETRAY_LOVER, STEAL_RESOURCES, SABOTAGE, BECOME_LEADER, SURVIVE_SILENTLY, PROTECT_SOMEONE
-- [ ] 2.3 目标完成条件检测
-- [ ] 2.4 完成/失败时触发事件
+- [x] 2.1 添加 SecretObjective 模型
+- [x] 2.2 目标类型: BETRAY_LOVER, STEAL_RESOURCES, SABOTAGE, BECOME_LEADER, SURVIVE_SILENTLY, PROTECT_SOMEONE
+- [x] 2.3 目标完成条件检测
+- [x] 2.4 完成/失败时触发事件
+
+**状态**: ✅ 完成
 
 ---
 

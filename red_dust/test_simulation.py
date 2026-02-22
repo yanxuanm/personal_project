@@ -10,40 +10,28 @@ from red_dust.simulation import SimulationController
 
 def test_basic_simulation():
     """Test basic simulation progression."""
-    print("Testing basic simulation...")
-    
     controller = SimulationController(seed=123)
     
     # Run 3 ticks
     for i in range(3):
-        print(f"\n--- Running tick {i} ---")
         game_over = controller.step()
-        if game_over:
-            print("Game over reached unexpectedly!")
-            return False
+        assert not game_over, "Game over reached unexpectedly!"
     
     # Check history size
     status = controller.get_current_status()
     assert status['tick'] == 3, f"Expected tick 3, got {status['tick']}"
-    assert len(controller.history) == 4, f"Expected 4 history states, got {len(controller.history)}"  # Initial + 3 ticks
-    
-    print(f"✓ Simulation progressed to tick {status['tick']}")
-    print(f"✓ History contains {len(controller.history)} states")
-    
-    return True
+    assert len(controller.history) == 4, f"Expected 4 history states, got {len(controller.history)}"
 
 
 def test_time_travel():
     """Test time travel functionality."""
-    print("\nTesting time travel...")
-    
     controller = SimulationController(seed=456)
     
     # Run 5 ticks and record resource levels at tick 2
     tick2_resources = None
     for i in range(5):
         controller.step()
-        if i == 1:  # After 2 steps (0, 1) -> tick should be 2
+        if i == 1:
             tick2_resources = controller.env.state.resources.copy()
     
     # Verify we're at tick 5
@@ -60,22 +48,14 @@ def test_time_travel():
     current_resources = controller.env.state.resources
     for resource in tick2_resources:
         assert abs(current_resources[resource] - tick2_resources[resource]) < 0.01, \
-            f"Resource {resource} mismatch after rewind: {current_resources[resource]} vs {tick2_resources[resource]}"
+            f"Resource {resource} mismatch after rewind"
     
     # Verify history was truncated
-    assert len(controller.history) == 3, f"Expected 3 history states after rewind, got {len(controller.history)}"
-    
-    print("✓ Time travel successful")
-    print("✓ Resources correctly restored")
-    print("✓ History correctly truncated")
-    
-    return True
+    assert len(controller.history) == 3, f"Expected 3 history states after rewind"
 
 
 def test_determinism():
     """Test that simulation is deterministic."""
-    print("\nTesting determinism...")
-    
     # Run simulation A
     controller_a = SimulationController(seed=789)
     for _ in range(4):
@@ -92,20 +72,15 @@ def test_determinism():
     
     # Compare resources
     for resource in state_a.resources:
-        if abs(state_a.resources[resource] - state_b.resources[resource]) > 0.01:
-            print(f"✗ Resource {resource} mismatch: {state_a.resources[resource]} vs {state_b.resources[resource]}")
-            return False
+        assert abs(state_a.resources[resource] - state_b.resources[resource]) < 0.01, \
+            f"Resource {resource} mismatch"
     
     # Compare agent health
     for name in state_a.agents:
         agent_a = state_a.agents[name]
         agent_b = state_b.agents[name]
-        if abs(agent_a.health - agent_b.health) > 0.01:
-            print(f"✗ Agent {name} health mismatch: {agent_a.health} vs {agent_b.health}")
-            return False
-    
-    print("✓ Determinism verified: identical results with same seed")
-    return True
+        assert abs(agent_a.health - agent_b.health) < 0.01, \
+            f"Agent {name} health mismatch"
 
 
 def main():

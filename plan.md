@@ -68,10 +68,12 @@
 **描述**: 丰富的随机事件系统
 
 **子任务**:
-- [ ] 4.1 创建事件定义文件
-- [ ] 4.2 事件类型: METEOR, ALIEN_DISCOVERY, EQUIPMENT_FAILURE, SUPPLY_DROP, SOLAR_STORM, DUST_STORM, DISEASE_OUTBREAK
-- [ ] 4.3 事件概率配置
-- [ ] 4.4 事件持续时间效果
+- [x] 4.1 创建事件定义文件
+- [x] 4.2 事件类型: METEOR, ALIEN_DISCOVERY, EQUIPMENT_FAILURE, SUPPLY_DROP, SOLAR_STORM, DUST_STORM, DISEASE_OUTBREAK
+- [x] 4.3 事件概率配置
+- [x] 4.4 事件持续时间效果
+
+**状态**: ✅ 完成
 
 ---
 
